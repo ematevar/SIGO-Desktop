@@ -1,0 +1,9 @@
+# Copia este archivo como config.properties y completa los datos de tu proveedor.
+db.host=tu-host-mysql
+db.port=3306
+db.name=sigoc_db
+db.user=usuario_aplicacion
+db.password=CAMBIAR
+db.ssl=true
+db.timezone=America/Lima
+# Puedes definir db.url directamente si el proveedor requiere opciones adicionales.

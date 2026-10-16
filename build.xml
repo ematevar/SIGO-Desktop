@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="sigoc-desktop" default="jar" basedir=".">
+    <property name="src.dir" value="src"/>
+    <property name="build.dir" value="build"/>
+    <property name="classes.dir" value="${build.dir}/classes"/>
+    <property name="dist.dir" value="dist"/>
+    <property name="jar.name" value="sigoc-desktop.jar"/>
+    <property name="jdk.release" value="26"/>
+    <path id="app.classpath"><fileset dir="lib" erroronmissingdir="false"><include name="*.jar"/></fileset></path>
+    <target name="clean"><delete dir="${build.dir}"/><delete dir="${dist.dir}"/></target>
+    <target name="compile">
+        <mkdir dir="${classes.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" release="${jdk.release}" encoding="UTF-8" includeantruntime="false">
+            <classpath refid="app.classpath"/>
+        </javac>
+        <copy file="config.properties.example" todir="${classes.dir}"/>
+    </target>
+    <target name="jar" depends="compile">
+        <mkdir dir="${dist.dir}"/>
+        <pathconvert property="manifest.classpath" pathsep=" ">
+            <path refid="app.classpath"/>
+            <mapper>
+                <chainedmapper>
+                    <flattenmapper/>
+                    <globmapper from="*" to="lib/*"/>
+                </chainedmapper>
+            </mapper>
+        </pathconvert>
+        <jar destfile="${dist.dir}/${jar.name}" basedir="${classes.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="com.sigoc.SigocDesktop"/>
+                <attribute name="Class-Path" value="${manifest.classpath}"/>
+            </manifest>
+        </jar>
+        <copy todir="${dist.dir}/lib" failonerror="false"><fileset dir="lib" erroronmissingdir="false"><include name="*.jar"/></fileset></copy>
+    </target>
+    <target name="run" depends="jar"><java jar="${dist.dir}/${jar.name}" fork="true"><classpath><path refid="app.classpath"/></classpath></java></target>
+</project>

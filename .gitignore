@@ -1,0 +1,9 @@
+config.properties
+build/
+dist/
+lib/*.jar
+backups/
+*.class
+.idea/
+.vscode/
+/nbproject/private/
