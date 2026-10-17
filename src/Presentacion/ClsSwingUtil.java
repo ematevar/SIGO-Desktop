@@ -1,4 +1,4 @@
-package com.sigoc.presentacion;
+package Presentacion;
 
 import java.awt.Component;
 import java.awt.Container;

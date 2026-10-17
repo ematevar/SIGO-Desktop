@@ -1,7 +1,7 @@
-package com.sigoc.presentacion;
+package Presentacion;
 
-import com.sigoc.config.ClsConstantes;
-import com.sigoc.entidad.ClsUsuario;
+import config.ClsConstantes;
+import Entidad.ClsUsuario;
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
 import java.awt.event.WindowAdapter;
@@ -101,7 +101,7 @@ public class FrmPrincipal extends JFrame {
         p.add(new JLabel("Nueva contraseña (8+ caracteres)")); p.add(nueva);
         if (JOptionPane.showConfirmDialog(this, p, "Cambiar contraseña", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
         try {
-            new com.sigoc.negocio.ClsUsuarioService().cambiarClave(sesion.getIdUsuario(), new String(actual.getPassword()), new String(nueva.getPassword()));
+            new Negocio.ClsUsuarioService().cambiarClave(sesion.getIdUsuario(), new String(actual.getPassword()), new String(nueva.getPassword()));
             JOptionPane.showMessageDialog(this, "Contraseña actualizada.");
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "No se pudo cambiar la contraseña", JOptionPane.ERROR_MESSAGE);

@@ -1,7 +1,7 @@
-package com.sigoc.presentacion;
+package Presentacion;
 
-import com.sigoc.negocio.ClsCatalogoService;
-import com.sigoc.negocio.ClsOperacionService;
+import Negocio.ClsCatalogoService;
+import Negocio.ClsOperacionService;
 import com.toedter.calendar.JDateChooser;
 
 import javax.swing.*;

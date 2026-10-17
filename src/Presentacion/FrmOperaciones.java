@@ -1,9 +1,9 @@
-package com.sigoc.presentacion;
+package Presentacion;
 
-import com.sigoc.config.ClsConexionBD;
-import com.sigoc.negocio.ClsAvanceService;
-import com.sigoc.negocio.ClsMaterialService;
-import com.sigoc.negocio.ClsOperacionService;
+import config.ClsConexionBD;
+import Negocio.ClsAvanceService;
+import Negocio.ClsMaterialService;
+import Negocio.ClsOperacionService;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;

@@ -1,8 +1,8 @@
-package com.sigoc.presentacion;
+package Presentacion;
 
-import com.sigoc.negocio.ClsReporteService;
-import com.sigoc.presentacion.ClsPanelGrafico.TipoGrafico;
-import com.sigoc.presentacion.ClsSwingUtil;
+import Negocio.ClsReporteService;
+import Presentacion.ClsPanelGrafico.TipoGrafico;
+import Presentacion.ClsSwingUtil;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.util.*;

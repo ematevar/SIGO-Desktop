@@ -1,7 +1,7 @@
-package com.sigoc.presentacion;
+package Presentacion;
 
-import com.sigoc.negocio.ClsUsuarioService;
-import com.sigoc.presentacion.ClsSwingUtil;
+import Negocio.ClsUsuarioService;
+import Presentacion.ClsSwingUtil;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
