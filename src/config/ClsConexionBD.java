@@ -1,4 +1,4 @@
-package com.sigoc.config;
+package config;
 
 import java.io.InputStream;
 import java.sql.Connection;
@@ -6,8 +6,11 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
-/** Centraliza la configuración y apertura de conexiones JDBC. */
+/**
+ * Centraliza la configuración y apertura de conexiones JDBC.
+ */
 public final class ClsConexionBD {
+
     private static final ClsConexionBD INSTANCIA = new ClsConexionBD();
     private final Properties propiedades = new Properties();
 
@@ -20,13 +23,20 @@ public final class ClsConexionBD {
         }
         try (InputStream in = ClsConexionBD.class.getClassLoader().getResourceAsStream("config.properties.example")) {
             if (in != null) {
-                Properties ejemplo = new Properties(); ejemplo.load(in);
-                for (String key : ejemplo.stringPropertyNames()) propiedades.putIfAbsent(key, ejemplo.getProperty(key));
+                Properties ejemplo = new Properties();
+                ejemplo.load(in);
+                for (String key : ejemplo.stringPropertyNames()) {
+                    propiedades.putIfAbsent(key, ejemplo.getProperty(key));
+                }
             }
-        } catch (Exception ex) { throw new IllegalStateException("No se pudo leer configuración de ejemplo", ex); }
+        } catch (Exception ex) {
+            throw new IllegalStateException("No se pudo leer configuración de ejemplo", ex);
+        }
     }
 
-    public static ClsConexionBD getInstancia() { return INSTANCIA; }
+    public static ClsConexionBD getInstancia() {
+        return INSTANCIA;
+    }
 
     public Connection abrirConexion() throws SQLException {
         String url = propiedades.getProperty("db.url");
@@ -43,14 +53,17 @@ public final class ClsConexionBD {
 
     public void probarConexion() throws SQLException {
         try (Connection c = abrirConexion(); var s = c.createStatement(); var rs = s.executeQuery("SELECT 1")) {
-            if (!rs.next() || rs.getInt(1) != 1) throw new SQLException("La consulta de comprobación no devolvió 1");
+            if (!rs.next() || rs.getInt(1) != 1) {
+                throw new SQLException("La consulta de comprobación no devolvió 1");
+            }
         }
     }
 
     private String requerido(String key) {
         String value = propiedades.getProperty(key);
-        if (value == null || value.isBlank() || value.startsWith("tu-") || value.equals("CAMBIAR"))
+        if (value == null || value.isBlank() || value.startsWith("tu-") || value.equals("CAMBIAR")) {
             throw new IllegalStateException("Configura " + key + " en config.properties");
+        }
         return value;
     }
 }
