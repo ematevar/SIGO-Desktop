@@ -3,8 +3,7 @@ package Entidad;
 /**
  * POJO de dominio; sus propiedades corresponden a la tabla avancepartida .
  */
-public class ClsAvancePartida
-        extends ClsEntidadBase {
+public class ClsAvancePartida extends ClsEntidadBase {
 
     public ClsAvancePartida() {
     }

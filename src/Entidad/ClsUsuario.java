@@ -1,5 +1,8 @@
 package Entidad;
 
+/**
+ * Entidad de dominio que representa al usuario autenticado y sus permisos de sesión (RF-01, RF-02).
+ */
 public class ClsUsuario {
 
     private int idUsuario;
@@ -9,6 +12,7 @@ public class ClsUsuario {
     private String passwordHash;
     private int idRol;
     private boolean activo;
+    private boolean requiereCambioClave;
 
     public ClsUsuario() {
     }
@@ -17,6 +21,13 @@ public class ClsUsuario {
         this.idUsuario = idUsuario;
         this.username = username;
         this.rol = rol;
+    }
+
+    public ClsUsuario(int idUsuario, String username, String rol, boolean requiereCambioClave) {
+        this.idUsuario = idUsuario;
+        this.username = username;
+        this.rol = rol;
+        this.requiereCambioClave = requiereCambioClave;
     }
 
     public int getIdUsuario() {
@@ -73,5 +84,13 @@ public class ClsUsuario {
 
     public void setActivo(boolean activo) {
         this.activo = activo;
+    }
+
+    public boolean isRequiereCambioClave() {
+        return requiereCambioClave;
+    }
+
+    public void setRequiereCambioClave(boolean requiereCambioClave) {
+        this.requiereCambioClave = requiereCambioClave;
     }
 }
