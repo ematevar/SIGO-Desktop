@@ -1,5 +1,6 @@
 package Presentacion;
 
+import config.ClsConstantes;
 import Negocio.ClsCatalogoService;
 import Negocio.ClsOperacionService;
 import com.toedter.calendar.JDateChooser;
@@ -13,6 +14,10 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 
+/**
+ * Formulario maestro de mantenimiento para Obras (RF-03), Partidas (RF-04),
+ * Materiales (RF-06), Proveedores (RF-09) y Personal/Trabajadores (RF-10).
+ */
 public class FrmRegistros extends JFrame {
 
     private static final Map<String, String> ETIQUETAS = Map.ofEntries(
@@ -49,6 +54,8 @@ public class FrmRegistros extends JFrame {
     );
 
     private static final Map<String, String[]> OPCIONES = Map.of(
+            "OBRAS", new String[]{"obra"},
+            "PARTIDAS", new String[]{"partida"},
             "OBRAS Y PARTIDAS", new String[]{"obra", "partida"},
             "MATERIALES", new String[]{"material"},
             "PROVEEDORES", new String[]{"proveedor"},
@@ -57,15 +64,17 @@ public class FrmRegistros extends JFrame {
 
     private final ClsCatalogoService service = new ClsCatalogoService();
     private final ClsOperacionService opService = new ClsOperacionService();
+    private final String rolSesion;
 
     private JComboBox<String> cboTabla;
     private JTable tablaDatos;
     private DefaultTableModel modelo;
     private JPanel pnlFormularioContenido;
-    
+
     private JButton btnNuevo;
     private JButton btnGuardar;
     private JButton btnEliminar;
+    private JButton btnCerrarObra;
     private JButton btnLimpiar;
 
     private final LinkedHashMap<String, JComponent> campos = new LinkedHashMap<>();
@@ -74,8 +83,13 @@ public class FrmRegistros extends JFrame {
     private Object idSeleccionado;
 
     public FrmRegistros(String modulo) {
-        setTitle("Gestión - " + modulo);
-        setSize(960, 600);
+        this(modulo, null);
+    }
+
+    public FrmRegistros(String modulo, String rolSesion) {
+        this.rolSesion = rolSesion;
+        setTitle("Gestión — " + modulo);
+        setSize(980, 600);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         initComponents(modulo);
@@ -85,31 +99,31 @@ public class FrmRegistros extends JFrame {
     private void initComponents(String modulo) {
         setLayout(new BorderLayout());
 
-        // Panel Norte
         JPanel pnlNorte = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-        pnlNorte.add(new JLabel("Tabla:"));
-        
+        pnlNorte.add(new JLabel("Catálogo:"));
+
         String[] tablasDisponibles = OPCIONES.getOrDefault(modulo, new String[0]);
+        if ("OBRAS Y PARTIDAS".equals(modulo) && ClsConstantes.ROL_RESIDENTE.equals(ClsConstantes.normalizarRol(rolSesion))) {
+            tablasDisponibles = new String[]{"partida"};
+        }
         cboTabla = new JComboBox<>(tablasDisponibles);
         cboTabla.addActionListener(e -> cargar());
         pnlNorte.add(cboTabla);
-        
+
         JButton btnActualizar = new JButton("Actualizar");
         btnActualizar.addActionListener(e -> cargar());
         pnlNorte.add(btnActualizar);
-        
+
         add(pnlNorte, BorderLayout.NORTH);
 
-        // Split Pane
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        splitPane.setDividerLocation(520);
+        splitPane.setDividerLocation(530);
         add(splitPane, BorderLayout.CENTER);
 
-        // Izquierda - Tabla
         modelo = new DefaultTableModel() {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // READ-ONLY
+                return false;
             }
         };
         tablaDatos = new JTable(modelo);
@@ -121,12 +135,11 @@ public class FrmRegistros extends JFrame {
                 seleccionarRegistro();
             }
         });
-        
+
         JScrollPane scrollTabla = new JScrollPane(tablaDatos);
         scrollTabla.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         splitPane.setLeftComponent(scrollTabla);
 
-        // Derecha - Formulario
         JPanel pnlDerecha = new JPanel(new BorderLayout());
         pnlDerecha.setBorder(BorderFactory.createCompoundBorder(
                 new EmptyBorder(10, 10, 10, 10),
@@ -138,23 +151,25 @@ public class FrmRegistros extends JFrame {
         scrollForm.setBorder(null);
         pnlDerecha.add(scrollForm, BorderLayout.CENTER);
 
-        // Botones de acción
         JPanel pnlBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 8));
         btnNuevo = new JButton("Nuevo");
         btnGuardar = new JButton("Guardar");
-        btnEliminar = new JButton("Eliminar");
+        btnEliminar = new JButton("Desactivar / Baja");
+        btnCerrarObra = new JButton("Cerrar Obra");
         btnLimpiar = new JButton("Limpiar");
 
         btnNuevo.addActionListener(e -> nuevo());
         btnGuardar.addActionListener(e -> guardar());
         btnEliminar.addActionListener(e -> eliminar());
+        btnCerrarObra.addActionListener(e -> cerrarObra());
         btnLimpiar.addActionListener(e -> limpiar());
 
         pnlBotones.add(btnNuevo);
         pnlBotones.add(btnGuardar);
         pnlBotones.add(btnEliminar);
+        pnlBotones.add(btnCerrarObra);
         pnlBotones.add(btnLimpiar);
-        
+
         pnlDerecha.add(pnlBotones, BorderLayout.SOUTH);
         splitPane.setRightComponent(pnlDerecha);
 
@@ -166,18 +181,15 @@ public class FrmRegistros extends JFrame {
     }
 
     private String getEtiqueta(String columna) {
-        // Si la columna es la Primary Key de la tabla actual, siempre mostrar "ID"
         if (pkActual != null && columna.equalsIgnoreCase(pkActual)) {
             return "ID";
         }
-        // Si es una Foreign Key reconocida (y no es la PK de esta tabla)
         if (FK_ETIQUETAS.containsKey(columna)) {
             return FK_ETIQUETAS.get(columna);
         }
         if (ETIQUETAS.containsKey(columna)) {
             return ETIQUETAS.get(columna);
         }
-        // Autogenerar
         String[] partes = columna.split("_");
         StringBuilder sb = new StringBuilder();
         for (String p : partes) {
@@ -191,53 +203,52 @@ public class FrmRegistros extends JFrame {
     private void actualizarEstadoBotones() {
         boolean haySeleccion = (idSeleccionado != null);
         btnEliminar.setEnabled(haySeleccion);
+        boolean esObra = "obra".equalsIgnoreCase(seleccion());
+        btnCerrarObra.setVisible(esObra);
+        btnCerrarObra.setEnabled(haySeleccion && esObra);
     }
 
     private record CargaData(List<String> columnas, String pk, List<Map<String, Object>> data, Map<String, List<Map<String, Object>>> fkOptions) {}
 
     private void cargar() {
         String tabla = seleccion();
-        if (tabla == null) return;
-        
-        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-        
+        if (tabla == null) {
+            return;
+        }
+
         ClsSwingUtil.ejecutarAsync(this, () -> {
             List<String> columnas = service.columnas(tabla);
             String pk = service.clavePrimaria(tabla);
             List<Map<String, Object>> data = service.listar(tabla);
-            
+
             Map<String, List<Map<String, Object>>> fkOptions = new HashMap<>();
             for (String col : columnas) {
-                // Solo cargar opciones si es una FK y NO es la clave primaria de esta tabla
                 if (!col.equalsIgnoreCase(pk) && FK_TABLAS.containsKey(col)) {
                     fkOptions.put(col, opService.opciones(FK_TABLAS.get(col)));
                 }
             }
             return new CargaData(columnas, pk, data, fkOptions);
-            
+
         }, res -> {
             pkActual = res.pk();
             idSeleccionado = null;
-            
-            // Guardar copia local de los datos crudos de la BD
+
             listaDatosActual.clear();
             listaDatosActual.addAll(res.data());
-            
-            // Reconstruir tabla
+
             modelo.setRowCount(0);
             modelo.setColumnCount(0);
-            
+
             for (String col : res.columnas()) {
                 modelo.addColumn(getEtiqueta(col));
             }
-            
+
             for (Map<String, Object> fila : res.data()) {
                 Object[] rowData = new Object[res.columnas().size()];
                 for (int i = 0; i < res.columnas().size(); i++) {
                     String colName = res.columnas().get(i);
                     Object val = fila.get(colName);
-                    
-                    // Solo reemplazar con nombre si es FK y NO es la PK de esta tabla
+
                     if (!colName.equalsIgnoreCase(pkActual) && FK_TABLAS.containsKey(colName) && val != null && res.fkOptions().containsKey(colName)) {
                         String strVal = val.toString();
                         for (Map<String, Object> opMap : res.fkOptions().get(colName)) {
@@ -252,32 +263,30 @@ public class FrmRegistros extends JFrame {
                 }
                 modelo.addRow(rowData);
             }
-            
-            // Ajustar automáticamente anchos de columnas
+
             ClsSwingUtil.autoAjustarColumnas(tablaDatos);
-            
-            // Reconstruir formulario
+
             pnlFormularioContenido.removeAll();
             campos.clear();
-            
+
             GridBagConstraints gbc = new GridBagConstraints();
             gbc.insets = new Insets(5, 5, 5, 5);
             gbc.anchor = GridBagConstraints.WEST;
             gbc.gridx = 0;
             gbc.gridy = 0;
-            
+
             for (String col : res.columnas()) {
                 gbc.gridx = 0;
                 gbc.weightx = 0;
                 gbc.fill = GridBagConstraints.NONE;
                 pnlFormularioContenido.add(new JLabel(getEtiqueta(col) + ":"), gbc);
-                
+
                 gbc.gridx = 1;
                 gbc.weightx = 1.0;
                 gbc.fill = GridBagConstraints.HORIZONTAL;
-                
+
                 JComponent comp;
-                
+
                 if (col.equalsIgnoreCase(pkActual) || "stock_actual".equalsIgnoreCase(col)) {
                     JTextField txt = new JTextField(20);
                     txt.setEditable(false);
@@ -300,7 +309,7 @@ public class FrmRegistros extends JFrame {
                     JDateChooser dc = new JDateChooser();
                     dc.setDateFormatString("yyyy-MM-dd");
                     if (dc.getDateEditor().getUiComponent() instanceof JTextField tf) {
-                        tf.setEditable(false); // Seleccionar mediante el calendario emergente
+                        tf.setEditable(false);
                     }
                     comp = dc;
                 } else if ("estado".equalsIgnoreCase(col)) {
@@ -310,9 +319,6 @@ public class FrmRegistros extends JFrame {
                         cbEstado.addItem("En Ejecución");
                         cbEstado.addItem("Pausada");
                         cbEstado.addItem("Finalizada");
-                    } else if ("empleado".equalsIgnoreCase(tabla)) {
-                        cbEstado.addItem("ACTIVO");
-                        cbEstado.addItem("INACTIVO");
                     } else {
                         cbEstado.addItem("ACTIVO");
                         cbEstado.addItem("INACTIVO");
@@ -321,50 +327,47 @@ public class FrmRegistros extends JFrame {
                 } else {
                     comp = new JTextField(20);
                 }
-                
+
                 campos.put(col, comp);
                 pnlFormularioContenido.add(comp, gbc);
-                
+
                 gbc.gridy++;
             }
-            
-            // Espaciador final
+
             gbc.gridx = 0;
             gbc.gridwidth = 2;
             gbc.weighty = 1.0;
             pnlFormularioContenido.add(Box.createVerticalGlue(), gbc);
-            
+
             pnlFormularioContenido.revalidate();
             pnlFormularioContenido.repaint();
-            setCursor(Cursor.getDefaultCursor());
-            
-            // Estado inicial de botones tras recargar
+
             limpiar();
-            
+
         }, err -> {
-            setCursor(Cursor.getDefaultCursor());
-            JOptionPane.showMessageDialog(this, "Error al cargar: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ClsConstantes.mensajeUsuario(err), "Error", JOptionPane.ERROR_MESSAGE);
         });
     }
 
     private void seleccionarRegistro() {
         int row = tablaDatos.getSelectedRow();
-        if (row < 0 || pkActual == null || row >= listaDatosActual.size()) return;
+        if (row < 0 || pkActual == null || row >= listaDatosActual.size()) {
+            return;
+        }
 
         int modelRow = tablaDatos.convertRowIndexToModel(row);
         Map<String, Object> fila = listaDatosActual.get(modelRow);
-        
-        // Obtener el ID REAL numérico de la fila directamente de la base de datos
+
         idSeleccionado = fila.get(pkActual);
 
         for (String col : campos.keySet()) {
             Object valor = fila.get(col);
             JComponent comp = campos.get(col);
-            
+
             if (comp instanceof JTextField txt) {
                 txt.setText(valor == null ? "" : valor.toString());
             } else if (comp instanceof JDateChooser dc) {
-                if (valor instanceof java.util.Date d) {
+                if (valor instanceof Date d) {
                     dc.setDate(d);
                 } else if (valor instanceof java.time.LocalDate ld) {
                     dc.setDate(java.sql.Date.valueOf(ld));
@@ -397,9 +400,9 @@ public class FrmRegistros extends JFrame {
                 }
             }
         }
-        
+
         btnGuardar.setEnabled(true);
-        btnEliminar.setEnabled(true);
+        actualizarEstadoBotones();
     }
 
     private void nuevo() {
@@ -407,9 +410,8 @@ public class FrmRegistros extends JFrame {
         idSeleccionado = null;
         limpiarCampos();
         btnGuardar.setEnabled(true);
-        btnEliminar.setEnabled(false);
-        
-        // Enfocar primer campo editable
+        actualizarEstadoBotones();
+
         for (var entry : campos.entrySet()) {
             if (!entry.getKey().equalsIgnoreCase(pkActual) && !"stock_actual".equalsIgnoreCase(entry.getKey())) {
                 entry.getValue().requestFocus();
@@ -423,7 +425,7 @@ public class FrmRegistros extends JFrame {
         idSeleccionado = null;
         limpiarCampos();
         btnGuardar.setEnabled(false);
-        btnEliminar.setEnabled(false);
+        actualizarEstadoBotones();
     }
 
     private void limpiarCampos() {
@@ -443,22 +445,26 @@ public class FrmRegistros extends JFrame {
 
     private void guardar() {
         String tabla = seleccion();
-        if (tabla == null || pkActual == null) return;
-        
+        if (tabla == null || pkActual == null) {
+            return;
+        }
+
         Map<String, Object> datos = new LinkedHashMap<>();
         Date fechaInicio = null;
         Date fechaFin = null;
 
         for (var entry : campos.entrySet()) {
             String col = entry.getKey();
-            if (col.equalsIgnoreCase(pkActual) || "stock_actual".equalsIgnoreCase(col)) continue;
-            
+            if (col.equalsIgnoreCase(pkActual) || "stock_actual".equalsIgnoreCase(col)) {
+                continue;
+            }
+
             JComponent comp = entry.getValue();
-            
+
             if (comp instanceof JTextField tf) {
                 String val = tf.getText().trim();
                 boolean esOpcional = COLUMNAS_OPCIONALES.contains(col.toLowerCase());
-                
+
                 if (val.isEmpty()) {
                     if (!esOpcional) {
                         JOptionPane.showMessageDialog(this, "El campo '" + getEtiqueta(col) + "' es obligatorio.", "Validación", JOptionPane.WARNING_MESSAGE);
@@ -467,13 +473,12 @@ public class FrmRegistros extends JFrame {
                     }
                     datos.put(col, null);
                 } else if (COLUMNAS_NUMERICAS.contains(col.toLowerCase())) {
-                    // Limpiar posibles símbolos de moneda, comas de miles y espacios
                     String rawNum = val.replace("S/", "").replace("$", "").replace(" ", "").replace(",", "");
                     try {
                         double numVal = Double.parseDouble(rawNum);
                         datos.put(col, numVal);
                     } catch (NumberFormatException e) {
-                        JOptionPane.showMessageDialog(this, "El campo '" + getEtiqueta(col) + "' debe ser un número válido (Ej. 150000.00).", "Validación", JOptionPane.WARNING_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "El campo '" + getEtiqueta(col) + "' debe ser un número válido.", "Validación", JOptionPane.WARNING_MESSAGE);
                         tf.requestFocus();
                         return;
                     }
@@ -487,8 +492,12 @@ public class FrmRegistros extends JFrame {
                     dc.requestFocus();
                     return;
                 }
-                if (col.equalsIgnoreCase("fecha_inicio_plan")) fechaInicio = d;
-                if (col.equalsIgnoreCase("fecha_fin_plan")) fechaFin = d;
+                if (col.equalsIgnoreCase("fecha_inicio_plan")) {
+                    fechaInicio = d;
+                }
+                if (col.equalsIgnoreCase("fecha_fin_plan")) {
+                    fechaFin = d;
+                }
                 datos.put(col, new SimpleDateFormat("yyyy-MM-dd").format(d));
             } else if (comp instanceof JComboBox<?> cb) {
                 Object sel = cb.getSelectedItem();
@@ -501,54 +510,66 @@ public class FrmRegistros extends JFrame {
                 }
             }
         }
-        
-        // Validación lógica de rango de fechas
+
         if (fechaInicio != null && fechaFin != null && fechaFin.before(fechaInicio)) {
             JOptionPane.showMessageDialog(this, "La Fecha de Fin no puede ser anterior a la Fecha de Inicio.", "Validación", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        
+
         Object id = idSeleccionado;
-        
-        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        String pk = pkActual;
+
         ClsSwingUtil.ejecutarVoid(this, () -> {
-            service.guardar(tabla, pkActual, id, datos);
+            service.guardar(tabla, pk, id, datos, rolSesion);
         }, () -> {
-            setCursor(Cursor.getDefaultCursor());
             JOptionPane.showMessageDialog(this, id == null ? "Registro creado correctamente." : "Registro actualizado correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
             cargar();
         }, err -> {
-            setCursor(Cursor.getDefaultCursor());
-            String msj = err.getMessage();
-            if (msj != null && msj.toLowerCase().contains("data truncation")) {
-                msj = "Revise que los datos numéricos y las fechas tengan un formato válido.";
-            }
-            JOptionPane.showMessageDialog(this, "Error al guardar: " + msj, "Error de Validación", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ClsConstantes.mensajeUsuario(err), "Validación", JOptionPane.ERROR_MESSAGE);
         });
     }
 
     private void eliminar() {
         String tabla = seleccion();
         if (tabla == null || pkActual == null || idSeleccionado == null) {
-            JOptionPane.showMessageDialog(this, "Seleccione un registro para eliminar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Seleccione un registro para dar de baja o desactivar.", "Aviso", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        
-        int resp = JOptionPane.showConfirmDialog(this, "¿Está seguro de eliminar este registro?", "Confirmar eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-        if (resp != JOptionPane.YES_OPTION) return;
-        
+
+        int resp = JOptionPane.showConfirmDialog(this, "¿Está seguro de desactivar / dar de baja este registro?", "Confirmar acción", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (resp != JOptionPane.YES_OPTION) {
+            return;
+        }
+
         Object id = idSeleccionado;
-        
-        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        String pk = pkActual;
+
         ClsSwingUtil.ejecutarVoid(this, () -> {
-            service.eliminar(tabla, pkActual, id);
+            service.eliminar(tabla, pk, id, rolSesion);
         }, () -> {
-            setCursor(Cursor.getDefaultCursor());
-            JOptionPane.showMessageDialog(this, "Registro eliminado correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Registro dado de baja correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
             cargar();
         }, err -> {
-            setCursor(Cursor.getDefaultCursor());
-            JOptionPane.showMessageDialog(this, "Error al eliminar: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ClsConstantes.mensajeUsuario(err), "No permitido", JOptionPane.WARNING_MESSAGE);
+        });
+    }
+
+    private void cerrarObra() {
+        if (!"obra".equalsIgnoreCase(seleccion()) || idSeleccionado == null) {
+            return;
+        }
+        int idObra = Integer.parseInt(idSeleccionado.toString());
+        int resp = JOptionPane.showConfirmDialog(this, "¿Desea cerrar/finalizar esta obra? Una obra finalizada conserva su historial pero ya no admite nuevos movimientos.", "Cerrar Obra (RF-03)", JOptionPane.YES_NO_OPTION);
+        if (resp != JOptionPane.YES_OPTION) {
+            return;
+        }
+        ClsSwingUtil.ejecutarVoid(this, () -> {
+            service.cerrarObra(idObra, rolSesion);
+        }, () -> {
+            JOptionPane.showMessageDialog(this, "La obra fue marcada como Finalizada.", "Obra cerrada", JOptionPane.INFORMATION_MESSAGE);
+            cargar();
+        }, err -> {
+            JOptionPane.showMessageDialog(this, ClsConstantes.mensajeUsuario(err), "Error", JOptionPane.ERROR_MESSAGE);
         });
     }
 
