@@ -1,16 +1,18 @@
 -- ============================================================
 -- SIGOC - Datos de Prueba (Transaccional)
--- Ejecutar este archivo poblara el sistema con datos realistas
--- y consistentes (Stock, Finanzas, Avances, etc.)
+-- Ejecutar este archivo poblará el sistema con datos realistas
+-- y consistentes (Stock, Finanzas, Avances, Asistencias, etc.)
 -- ============================================================
 USE sigoc_db;
 
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE egreso;
 TRUNCATE TABLE ingreso;
+TRUNCATE TABLE cierre_planilla;
 TRUNCATE TABLE produccion_empleado;
 TRUNCATE TABLE asistencia;
 TRUNCATE TABLE consumo_material;
+TRUNCATE TABLE detalle_compra;
 TRUNCATE TABLE compra_material;
 TRUNCATE TABLE avance_partida;
 TRUNCATE TABLE partida;
@@ -26,7 +28,7 @@ INSERT INTO proveedor (id_proveedor, razon_social, ruc, telefono, direccion) VAL
 (2, 'Distribuidora Constructor Tacna EIRL', '20567891234', '052-423555', 'Av. Collpa 812, Tacna'),
 (3, 'Materiales del Sur SAC', '20678912345', '052-455009', 'Calle Zela 233, Tacna');
 
--- 2. Materiales (El stock inicial es el remanente despues de las compras y consumos)
+-- 2. Materiales (El stock actual refleja el remanente después de las compras y consumos)
 INSERT INTO material (id_material, nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_ref) VALUES
 (1, 'Cemento Portland Tipo I', 'bolsa', 300, 50, 26.50),
 (2, 'Fierro corrugado 1/2 pulg.', 'varilla', 450, 100, 32.00),
@@ -79,13 +81,13 @@ INSERT INTO detalle_compra (id_compra, id_material, cantidad, precio_unitario, s
 (3, 3, 8000, 0.80, 6400.00),   -- Ladrillo
 (4, 4, 40, 44.00, 1760.00);    -- Arena gruesa
 
--- 8. Transacciones: Egresos (Relacionados a las compras + planilla simulada)
+-- 8. Transacciones: Egresos (Tipos unificados con el código: Material, Planilla, Otro)
 INSERT INTO egreso (id_obra, fecha, tipo_egreso, concepto, monto, id_compra, id_cierre) VALUES
-(1, '2026-09-02', 'COMPRA', 'Compra material (Fac: F001-000456)', 13000.00, 1, NULL),
-(1, '2026-09-03', 'COMPRA', 'Compra material (Fac: F002-000123)', 18900.00, 2, NULL),
-(1, '2026-09-05', 'COMPRA', 'Compra material (Fac: F003-000789)', 6400.00, 3, NULL),
-(2, '2026-09-16', 'COMPRA', 'Compra material (Bol: B001-000111)', 1760.00, 4, NULL),
-(1, '2026-09-30', 'MANUAL', 'Pago de planilla - Setiembre', 11000.00, NULL, NULL);
+(1, '2026-09-02', 'Material', 'Compra Factura F001-000456', 13000.00, 1, NULL),
+(1, '2026-09-03', 'Material', 'Compra Factura F002-000123', 18900.00, 2, NULL),
+(1, '2026-09-05', 'Material', 'Compra Factura F003-000789', 6400.00, 3, NULL),
+(2, '2026-09-16', 'Material', 'Compra Boleta B001-000111', 1760.00, 4, NULL),
+(1, '2026-09-30', 'Otro', 'Gastos operativos iniciales de obra', 2500.00, NULL, NULL);
 
 -- 9. Transacciones: Consumos de material (Disminuye stock)
 INSERT INTO consumo_material (id_material, id_partida, id_usuario, fecha_consumo, cantidad) VALUES

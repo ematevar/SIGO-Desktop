@@ -1,7 +1,8 @@
 -- ============================================================
 -- SIGOC — sigoc_esquema.sql
--- Creación de la base de datos y las 16 tablas (Fase Desktop)
--- Incluye soporte para borrado lógico (activo, fecha_borrado)
+-- Creación de la base de datos y las tablas del sistema (Fase Desktop)
+-- Incluye soporte para borrado lógico (activo, fecha_borrado) y
+-- restricciones de integridad según el SRS (RF-03, RF-04, RF-07, RF-09, RF-10).
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS sigoc_db
@@ -10,7 +11,7 @@ USE sigoc_db;
 
 CREATE TABLE IF NOT EXISTS rol (
   id_rol        INT AUTO_INCREMENT PRIMARY KEY,
-  nombre_rol    VARCHAR(40) NOT NULL,
+  nombre_rol    VARCHAR(40) NOT NULL UNIQUE,
   activo        TINYINT(1) NOT NULL DEFAULT 1,
   fecha_borrado DATETIME NULL
 ) ENGINE=InnoDB;
@@ -32,12 +33,14 @@ CREATE TABLE IF NOT EXISTS obra (
   nombre            VARCHAR(150) NOT NULL,
   cliente           VARCHAR(150) NOT NULL,
   ubicacion         VARCHAR(200),
-  presupuesto_total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  presupuesto_total DECIMAL(12,2) NOT NULL,
   fecha_inicio_plan DATE NOT NULL,
   fecha_fin_plan    DATE NOT NULL,
   estado            VARCHAR(20) NOT NULL DEFAULT 'Planificada',
   activo            TINYINT(1) NOT NULL DEFAULT 1,
-  fecha_borrado     DATETIME NULL
+  fecha_borrado     DATETIME NULL,
+  CONSTRAINT chk_obra_presupuesto CHECK (presupuesto_total > 0),
+  CONSTRAINT chk_obra_fechas CHECK (fecha_fin_plan >= fecha_inicio_plan)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS partida (
@@ -49,7 +52,9 @@ CREATE TABLE IF NOT EXISTS partida (
   peso_presupuestal   DECIMAL(5,2) NOT NULL,
   activo              TINYINT(1) NOT NULL DEFAULT 1,
   fecha_borrado       DATETIME NULL,
-  CONSTRAINT fk_partida_obra FOREIGN KEY (id_obra) REFERENCES obra(id_obra)
+  CONSTRAINT fk_partida_obra FOREIGN KEY (id_obra) REFERENCES obra(id_obra),
+  CONSTRAINT chk_partida_metrado CHECK (metrado_planificado > 0),
+  CONSTRAINT chk_partida_peso CHECK (peso_presupuestal > 0 AND peso_presupuestal <= 100)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS avance_partida (
@@ -75,7 +80,21 @@ CREATE TABLE IF NOT EXISTS material (
   stock_minimo       DECIMAL(10,2) NOT NULL DEFAULT 0,
   costo_unitario_ref DECIMAL(10,2) NOT NULL DEFAULT 0,
   activo             TINYINT(1) NOT NULL DEFAULT 1,
-  fecha_borrado      DATETIME NULL
+  fecha_borrado      DATETIME NULL,
+  CONSTRAINT chk_material_stock CHECK (stock_actual >= 0 AND stock_minimo >= 0 AND costo_unitario_ref >= 0)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS partida_material (
+  id_partida_material     INT AUTO_INCREMENT PRIMARY KEY,
+  id_partida              INT NOT NULL,
+  id_material             INT NOT NULL,
+  cantidad_presupuestada  DECIMAL(10,2) NOT NULL,
+  activo                  TINYINT(1) NOT NULL DEFAULT 1,
+  fecha_borrado           DATETIME NULL,
+  CONSTRAINT fk_pm_partida FOREIGN KEY (id_partida) REFERENCES partida(id_partida),
+  CONSTRAINT fk_pm_material FOREIGN KEY (id_material) REFERENCES material(id_material),
+  CONSTRAINT chk_pm_cantidad CHECK (cantidad_presupuestada > 0),
+  UNIQUE KEY uq_partida_material (id_partida, id_material)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS proveedor (
@@ -97,7 +116,9 @@ CREATE TABLE IF NOT EXISTS compra_material (
   total              DECIMAL(12,2) NOT NULL DEFAULT 0,
   activo             TINYINT(1) NOT NULL DEFAULT 1,
   fecha_borrado      DATETIME NULL,
-  CONSTRAINT fk_compra_proveedor FOREIGN KEY (id_proveedor) REFERENCES proveedor(id_proveedor)
+  CONSTRAINT fk_compra_proveedor FOREIGN KEY (id_proveedor) REFERENCES proveedor(id_proveedor),
+  CONSTRAINT chk_compra_total CHECK (total > 0),
+  UNIQUE KEY uq_proveedor_comprobante (id_proveedor, numero_comprobante)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS detalle_compra (
@@ -110,7 +131,8 @@ CREATE TABLE IF NOT EXISTS detalle_compra (
   activo          TINYINT(1) NOT NULL DEFAULT 1,
   fecha_borrado   DATETIME NULL,
   CONSTRAINT fk_detalle_compra FOREIGN KEY (id_compra) REFERENCES compra_material(id_compra),
-  CONSTRAINT fk_detalle_material FOREIGN KEY (id_material) REFERENCES material(id_material)
+  CONSTRAINT fk_detalle_material FOREIGN KEY (id_material) REFERENCES material(id_material),
+  CONSTRAINT chk_detalle_valores CHECK (cantidad > 0 AND precio_unitario > 0 AND subtotal > 0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS consumo_material (
@@ -125,6 +147,7 @@ CREATE TABLE IF NOT EXISTS consumo_material (
   CONSTRAINT fk_consumo_partida FOREIGN KEY (id_partida) REFERENCES partida(id_partida),
   CONSTRAINT fk_consumo_material FOREIGN KEY (id_material) REFERENCES material(id_material),
   CONSTRAINT fk_consumo_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario),
+  CONSTRAINT chk_consumo_cantidad CHECK (cantidad > 0),
   INDEX idx_consumo_material_fecha(id_material, fecha_consumo)
 ) ENGINE=InnoDB;
 
@@ -136,7 +159,8 @@ CREATE TABLE IF NOT EXISTS empleado (
   jornal_diario     DECIMAL(8,2) NOT NULL,
   fecha_ingreso     DATE NOT NULL,
   activo            TINYINT(1) NOT NULL DEFAULT 1,
-  fecha_borrado     DATETIME NULL
+  fecha_borrado     DATETIME NULL,
+  CONSTRAINT chk_empleado_jornal CHECK (jornal_diario > 0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS asistencia (
@@ -163,7 +187,8 @@ CREATE TABLE IF NOT EXISTS produccion_empleado (
   activo             TINYINT(1) NOT NULL DEFAULT 1,
   fecha_borrado      DATETIME NULL,
   CONSTRAINT fk_produccion_empleado FOREIGN KEY (id_empleado) REFERENCES empleado(id_empleado),
-  CONSTRAINT fk_produccion_partida FOREIGN KEY (id_partida) REFERENCES partida(id_partida)
+  CONSTRAINT fk_produccion_partida FOREIGN KEY (id_partida) REFERENCES partida(id_partida),
+  CONSTRAINT chk_produccion_cantidad CHECK (cantidad_producida > 0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS cierre_planilla (
@@ -177,7 +202,8 @@ CREATE TABLE IF NOT EXISTS cierre_planilla (
   activo               TINYINT(1) NOT NULL DEFAULT 1,
   fecha_borrado        DATETIME NULL,
   CONSTRAINT fk_cierre_obra FOREIGN KEY (id_obra) REFERENCES obra(id_obra),
-  CONSTRAINT fk_cierre_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
+  CONSTRAINT fk_cierre_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario),
+  CONSTRAINT chk_cierre_fechas CHECK (fecha_fin_periodo >= fecha_inicio_periodo)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS ingreso (
@@ -188,7 +214,8 @@ CREATE TABLE IF NOT EXISTS ingreso (
   monto         DECIMAL(12,2) NOT NULL,
   activo        TINYINT(1) NOT NULL DEFAULT 1,
   fecha_borrado DATETIME NULL,
-  CONSTRAINT fk_ingreso_obra FOREIGN KEY (id_obra) REFERENCES obra(id_obra)
+  CONSTRAINT fk_ingreso_obra FOREIGN KEY (id_obra) REFERENCES obra(id_obra),
+  CONSTRAINT chk_ingreso_monto CHECK (monto > 0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS egreso (
@@ -205,5 +232,6 @@ CREATE TABLE IF NOT EXISTS egreso (
   CONSTRAINT fk_egreso_obra FOREIGN KEY (id_obra) REFERENCES obra(id_obra),
   CONSTRAINT fk_egreso_compra FOREIGN KEY (id_compra) REFERENCES compra_material(id_compra),
   CONSTRAINT fk_egreso_cierre FOREIGN KEY (id_cierre) REFERENCES cierre_planilla(id_cierre),
+  CONSTRAINT chk_egreso_monto CHECK (monto > 0),
   INDEX idx_egreso_obra_fecha(id_obra, fecha)
 ) ENGINE=InnoDB;
