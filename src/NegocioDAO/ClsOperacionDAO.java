@@ -1,6 +1,16 @@
 package NegocioDAO;
 
 import config.ClsConexionBD;
+import Entidad.ClsAsistencia;
+import Entidad.ClsAvancePartida;
+import Entidad.ClsCierrePlanilla;
+import Entidad.ClsCompraMaterial;
+import Entidad.ClsConsumoMaterial;
+import Entidad.ClsDetalleCompra;
+import Entidad.ClsEgreso;
+import Entidad.ClsEntidadBase;
+import Entidad.ClsIngreso;
+import Entidad.ClsProduccionEmpleado;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
@@ -386,9 +396,23 @@ public class ClsOperacionDAO {
                 }
             }
             while (rs.next()) {
+                ClsEntidadBase entidad = switch (tabla) {
+                    case "avance_partida" -> new ClsAvancePartida(rs.getInt(1));
+                    case "compra_material" -> new ClsCompraMaterial(rs.getInt(1));
+                    case "consumo_material" -> new ClsConsumoMaterial(rs.getInt(1));
+                    case "asistencia" -> new ClsAsistencia(rs.getInt(1));
+                    case "produccion_empleado" -> new ClsProduccionEmpleado(rs.getInt(1));
+                    case "ingreso" -> new ClsIngreso(rs.getInt(1));
+                    case "egreso" -> new ClsEgreso(rs.getInt(1));
+                    case "cierre_planilla" -> new ClsCierrePlanilla(rs.getInt(1));
+                    default -> new ClsDetalleCompra(rs.getInt(1));
+                };
                 Object[] row = new Object[columns.size()];
                 for (int i = 0; i < columns.size(); i++) {
-                    row[i] = rs.getObject(columns.get(i));
+                    String colName = columns.get(i);
+                    Object val = rs.getObject(colName);
+                    entidad.set(colName, val);
+                    row[i] = entidad.get(colName);
                 }
                 rows.add(row);
             }

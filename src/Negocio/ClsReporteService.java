@@ -446,55 +446,77 @@ public class ClsReporteService {
      * @throws Exception Si ocurre un error de escritura.
      */
     public void exportarPdf(Reporte reporte, Path path) throws Exception {
-        StringBuilder stream = new StringBuilder();
-        stream.append("BT\n/F1 14 Tf\n40 555 Td\n(")
-              .append(escaparPdf("SIGOC Desktop - " + reporte.titulo()))
-              .append(") Tj\nET\n");
+        List<Object[]> filas = reporte.filas();
+        int filasPorPagina = 34;
+        int totalPaginas = Math.max(1, (filas.size() + filasPorPagina - 1) / filasPorPagina);
 
-        stream.append("BT\n/F1 8 Tf\n40 535 Td\n(")
-              .append(escaparPdf(formatearFilaPdf(reporte.columnas().toArray())))
-              .append(") Tj\nET\n");
-
-        int y = 520;
-        for (Object[] fila : reporte.filas()) {
-            if (y < 40) {
-                break;
-            }
-            stream.append("BT\n/F1 8 Tf\n40 ").append(y).append(" Td\n(")
-                  .append(escaparPdf(formatearFilaPdf(fila)))
+        List<byte[]> streamsPaginas = new ArrayList<>();
+        for (int p = 0; p < totalPaginas; p++) {
+            StringBuilder stream = new StringBuilder();
+            stream.append("BT\n/F1 13 Tf\n36 555 Td\n(")
+                  .append(escaparPdf("SIGOC Desktop - " + reporte.titulo() + " (Pag. " + (p + 1) + "/" + totalPaginas + ")"))
                   .append(") Tj\nET\n");
-            y -= 14;
+
+            stream.append("BT\n/F1 8 Tf\n36 535 Td\n(")
+                  .append(escaparPdf(formatearFilaPdf(reporte.columnas().toArray())))
+                  .append(") Tj\nET\n");
+
+            int y = 518;
+            int inicio = p * filasPorPagina;
+            int fin = Math.min(filas.size(), inicio + filasPorPagina);
+            for (int r = inicio; r < fin; r++) {
+                stream.append("BT\n/F1 8 Tf\n36 ").append(y).append(" Td\n(")
+                      .append(escaparPdf(formatearFilaPdf(filas.get(r))))
+                      .append(") Tj\nET\n");
+                y -= 14;
+            }
+            streamsPaginas.add(stream.toString().getBytes(StandardCharsets.ISO_8859_1));
         }
 
-        byte[] contentBytes = stream.toString().getBytes(StandardCharsets.ISO_8859_1);
         ByteArrayOutputStream pdf = new ByteArrayOutputStream();
         List<Integer> offsets = new ArrayList<>();
-
         escribirAscii(pdf, "%PDF-1.4\n");
 
+        // Obj 1: Catalog, Obj 2: Pages, Obj 3: Font
         offsets.add(pdf.size());
         escribirAscii(pdf, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
 
-        offsets.add(pdf.size());
-        escribirAscii(pdf, "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+        StringBuilder kids = new StringBuilder("[");
+        for (int p = 0; p < totalPaginas; p++) {
+            if (p > 0) {
+                kids.append(" ");
+            }
+            kids.append(4 + (p * 2)).append(" 0 R");
+        }
+        kids.append("]");
 
         offsets.add(pdf.size());
-        escribirAscii(pdf, "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n");
+        escribirAscii(pdf, "2 0 obj\n<< /Type /Pages /Kids " + kids + " /Count " + totalPaginas + " >>\nendobj\n");
 
         offsets.add(pdf.size());
-        escribirAscii(pdf, "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>\nendobj\n");
+        escribirAscii(pdf, "3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>\nendobj\n");
 
-        offsets.add(pdf.size());
-        escribirAscii(pdf, "5 0 obj\n<< /Length " + contentBytes.length + " >>\nstream\n");
-        pdf.write(contentBytes);
-        escribirAscii(pdf, "\nendstream\nendobj\n");
+        for (int p = 0; p < totalPaginas; p++) {
+            int pageObjId = 4 + (p * 2);
+            int contentObjId = pageObjId + 1;
+            byte[] contentBytes = streamsPaginas.get(p);
 
+            offsets.add(pdf.size());
+            escribirAscii(pdf, pageObjId + " 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R >> >> /Contents " + contentObjId + " 0 R >>\nendobj\n");
+
+            offsets.add(pdf.size());
+            escribirAscii(pdf, contentObjId + " 0 obj\n<< /Length " + contentBytes.length + " >>\nstream\n");
+            pdf.write(contentBytes);
+            escribirAscii(pdf, "\nendstream\nendobj\n");
+        }
+
+        int totalObjs = offsets.size() + 1;
         int xrefOffset = pdf.size();
-        escribirAscii(pdf, "xref\n0 6\n0000000000 65535 f \n");
+        escribirAscii(pdf, "xref\n0 " + totalObjs + "\n0000000000 65535 f \n");
         for (int off : offsets) {
             escribirAscii(pdf, String.format("%010d 00000 n \n", off));
         }
-        escribirAscii(pdf, "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n" + xrefOffset + "\n%%EOF\n");
+        escribirAscii(pdf, "trailer\n<< /Size " + totalObjs + " /Root 1 0 R >>\nstartxref\n" + xrefOffset + "\n%%EOF\n");
 
         Files.write(path, pdf.toByteArray());
     }

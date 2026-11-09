@@ -1,7 +1,8 @@
 -- ============================================================
 -- SIGOC - Datos de Prueba (Transaccional)
 -- Ejecutar este archivo poblará el sistema con datos realistas
--- y consistentes (Stock, Finanzas, Avances, Asistencias, etc.)
+-- y consistentes (Stock, Presupuesto de materiales, Finanzas,
+-- Avances, Asistencias, Producción, etc.)
 -- ============================================================
 USE sigoc_db;
 
@@ -15,6 +16,7 @@ TRUNCATE TABLE consumo_material;
 TRUNCATE TABLE detalle_compra;
 TRUNCATE TABLE compra_material;
 TRUNCATE TABLE avance_partida;
+TRUNCATE TABLE partida_material;
 TRUNCATE TABLE partida;
 TRUNCATE TABLE empleado;
 TRUNCATE TABLE obra;
@@ -53,6 +55,14 @@ INSERT INTO partida (id_partida, id_obra, nombre, unidad_medida, metrado_planifi
 (3, 1, 'Muros de ladrillo KK', 'm2', 800.00, 30.00),
 (4, 2, 'Trazo y replanteo topográfico', 'm2', 1200.00, 5.00),
 (5, 2, 'Colocación de carpeta asfáltica', 'm2', 1200.00, 60.00);
+
+-- 4.1 Presupuesto de materiales por partida (RF-16b)
+INSERT INTO partida_material (id_partida, id_material, cantidad_presupuestada) VALUES
+(2, 1, 180.00),    -- Cemento en zapatas: consumo real 200 -> desviación +11.11 %
+(2, 2, 200.00),    -- Fierro en zapatas: consumo real 150 -> desviación -25.00 %
+(3, 3, 12000.00),  -- Ladrillo en muros: consumo real 3000 -> desviación -75.00 %
+(3, 7, 100.00),    -- Alambre negro en muros: aún sin consumo -> desviación -100.00 %
+(5, 4, 40.00);     -- Arena gruesa en carpeta: consumo real 15 -> desviación -62.50 %
 
 -- 5. Empleados
 INSERT INTO empleado (id_empleado, nombres_apellidos, dni, cargo, jornal_diario, fecha_ingreso) VALUES

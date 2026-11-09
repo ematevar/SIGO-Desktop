@@ -1,6 +1,13 @@
 package NegocioDAO;
 
 import config.ClsConexionBD;
+import Entidad.ClsEntidadBase;
+import Entidad.ClsEmpleado;
+import Entidad.ClsMaterial;
+import Entidad.ClsObra;
+import Entidad.ClsPartida;
+import Entidad.ClsProveedor;
+import Entidad.ClsRol;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -81,14 +88,21 @@ public class ClsCatalogoDAO {
              ResultSet rs = st.executeQuery("SELECT * FROM " + t + " WHERE activo=1 ORDER BY 1 DESC LIMIT 500")) {
             int n = rs.getMetaData().getColumnCount();
             while (rs.next()) {
-                Map<String, Object> row = new LinkedHashMap<>();
+                ClsEntidadBase entidad = switch (t) {
+                    case "obra" -> new ClsObra(rs.getInt(1));
+                    case "partida" -> new ClsPartida(rs.getInt(1));
+                    case "material" -> new ClsMaterial(rs.getInt(1));
+                    case "proveedor" -> new ClsProveedor(rs.getInt(1));
+                    case "empleado" -> new ClsEmpleado(rs.getInt(1));
+                    default -> new ClsRol(rs.getInt(1));
+                };
                 for (int i = 1; i <= n; i++) {
                     String col = rs.getMetaData().getColumnLabel(i);
                     if (!col.equalsIgnoreCase("activo") && !col.equalsIgnoreCase("fecha_borrado")) {
-                        row.put(col, rs.getObject(i));
+                        entidad.set(col, rs.getObject(i));
                     }
                 }
-                out.add(row);
+                out.add(new LinkedHashMap<>(entidad.getPropiedades()));
             }
         }
         return out;

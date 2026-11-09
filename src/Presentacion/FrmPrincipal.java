@@ -70,6 +70,16 @@ public class FrmPrincipal extends JFrame {
         String rolNorm = ClsConstantes.normalizarRol(sesion.getRol());
         JPanel tarjetas = new JPanel(new GridLayout(0, 3, 12, 12));
         tarjetas.setBorder(BorderFactory.createEmptyBorder(12, 18, 18, 18));
+        if (sesion.isRequiereCambioClave()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Debe cambiar la contraseña inicial de la cuenta antes de poder utilizar el sistema.",
+                    "Cambio de contraseña obligatorio (RF-01)",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            SwingUtilities.invokeLater(this::cerrarSesion);
+            return;
+        }
         for (String[] permiso : PERMISOS) {
             boolean permitido = false;
             for (int i = 1; i < permiso.length; i++) {

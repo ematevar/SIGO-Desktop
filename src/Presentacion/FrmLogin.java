@@ -84,6 +84,7 @@ public class FrmLogin extends JFrame {
                     renovarCaptcha();
                     return;
                 }
+                sesion.setRequiereCambioClave(false);
             }
             dispose();
             new FrmPrincipal(sesion).setVisible(true);
