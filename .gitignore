@@ -4,6 +4,8 @@ dist/
 lib/*.jar
 backups/
 *.class
+*.log
+sigoc-desktop.iml
 .idea/
 .vscode/
 /nbproject/private/

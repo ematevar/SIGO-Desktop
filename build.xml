@@ -1,13 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="sigoc-desktop" default="jar" basedir=".">
     <property name="src.dir" value="src"/>
+    <property name="test.dir" value="test"/>
     <property name="build.dir" value="build"/>
     <property name="classes.dir" value="${build.dir}/classes"/>
+    <property name="test.classes.dir" value="${build.dir}/test-classes"/>
     <property name="dist.dir" value="dist"/>
     <property name="jar.name" value="sigoc-desktop.jar"/>
     <property name="jdk.release" value="26"/>
-    <path id="app.classpath"><fileset dir="lib" erroronmissingdir="false"><include name="*.jar"/></fileset></path>
-    <target name="clean"><delete dir="${build.dir}"/><delete dir="${dist.dir}"/></target>
+
+    <path id="app.classpath">
+        <fileset dir="lib" erroronmissingdir="false">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+    <path id="test.classpath">
+        <path refid="app.classpath"/>
+        <pathelement location="${classes.dir}"/>
+        <pathelement location="${test.classes.dir}"/>
+    </path>
+
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+    </target>
+
     <target name="compile">
         <mkdir dir="${classes.dir}"/>
         <javac srcdir="${src.dir}" destdir="${classes.dir}" release="${jdk.release}" encoding="UTF-8" includeantruntime="false">
@@ -15,6 +33,21 @@
         </javac>
         <copy file="config.properties.example" todir="${classes.dir}"/>
     </target>
+
+    <target name="compile-test" depends="compile">
+        <mkdir dir="${test.classes.dir}"/>
+        <javac srcdir="${test.dir}" destdir="${test.classes.dir}" release="${jdk.release}" encoding="UTF-8" includeantruntime="false">
+            <classpath refid="test.classpath"/>
+        </javac>
+    </target>
+
+    <target name="test" depends="compile-test">
+        <java classname="org.junit.runner.JUnitCore" fork="true" failonerror="true">
+            <classpath refid="test.classpath"/>
+            <arg value="Negocio.SigocSrsComplianceTest"/>
+        </java>
+    </target>
+
     <target name="jar" depends="compile">
         <mkdir dir="${dist.dir}"/>
         <pathconvert property="manifest.classpath" pathsep=" ">
@@ -32,7 +65,18 @@
                 <attribute name="Class-Path" value="${manifest.classpath}"/>
             </manifest>
         </jar>
-        <copy todir="${dist.dir}/lib" failonerror="false"><fileset dir="lib" erroronmissingdir="false"><include name="*.jar"/></fileset></copy>
+        <copy todir="${dist.dir}/lib" failonerror="false">
+            <fileset dir="lib" erroronmissingdir="false">
+                <include name="*.jar"/>
+            </fileset>
+        </copy>
     </target>
-    <target name="run" depends="jar"><java jar="${dist.dir}/${jar.name}" fork="true"><classpath><path refid="app.classpath"/></classpath></java></target>
+
+    <target name="run" depends="jar">
+        <java jar="${dist.dir}/${jar.name}" fork="true">
+            <classpath>
+                <path refid="app.classpath"/>
+            </classpath>
+        </java>
+    </target>
 </project>

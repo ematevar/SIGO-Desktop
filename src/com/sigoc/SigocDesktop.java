@@ -1,6 +1,6 @@
 package com.sigoc;
 
-import com.sigoc.presentacion.FrmLogin;
+import Presentacion.FrmLogin;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
